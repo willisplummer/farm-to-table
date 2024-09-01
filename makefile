@@ -2,7 +2,7 @@ COMPILER = clang
 
 SOURCE_LIBS = -Ilib/
 
-MAC_OPT = -Llib/ -framework CoreVideo -framework IOKit -framework Cocoa -framework GLUT -framework OpenGL lib/libraylib.a
+MAC_OPT = --debug -Llib/ -framework CoreVideo -framework IOKit -framework Cocoa -framework GLUT -framework OpenGL lib/libraylib.a
 
 MAC_OUT = -o "bin/build_mac"
 

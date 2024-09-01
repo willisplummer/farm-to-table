@@ -4,6 +4,7 @@
       "/usr/bin/clang",
       "-c",
       "-Ilib/",
+      "--debug",
       "-framework",
       "CoreVideo",
       "-framework",

@@ -21,6 +21,6 @@ run `make` in the top-level directory then you can play by calling the executabl
 -[x] implement player movement
 -[x] gameloop should account for delta_t
 -[x] make player sprite the right size
--[ ] make sure I have a working debugger with nvim (and generally I have LSP for C etc)
+-[x] make sure I have a working debugger with nvim (and generally I have LSP for C etc) -- leader>db to set break point and <leader>dr to run the debugger
 -[ ] hot reloading - https://seletz.github.io/posts/hotreload-gamecode-in-c/ https://github.com/seletz/raylib-hot-code-reload-c-example?tab=readme-ov-file
 

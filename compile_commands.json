@@ -1,0 +1,26 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-Ilib/",
+      "-framework",
+      "CoreVideo",
+      "-framework",
+      "IOKit",
+      "-framework",
+      "Cocoa",
+      "-framework",
+      "GLUT",
+      "-framework",
+      "OpenGL",
+      "lib/libraylib.a",
+      "-o",
+      "bin/build_mac",
+      "src/main.c"
+    ],
+    "directory": "/Users/willisplummer/code/farm-to-table",
+    "file": "/Users/willisplummer/code/farm-to-table/src/main.c",
+    "output": "/Users/willisplummer/code/farm-to-table/bin/build_mac"
+  }
+]

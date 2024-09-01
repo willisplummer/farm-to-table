@@ -8,8 +8,8 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     const char gameTitle[] = "Farm To Table";
-    const int screenWidth = 800;
-    const int screenHeight = 450;
+    const int screenWidth = 1280;
+    const int screenHeight = 720;
     Color background = GetColor(0x4b692fff);
 
     InitWindow(screenWidth, screenHeight, gameTitle);
@@ -23,12 +23,15 @@ int main(void)
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
+        const float deltaT = GetFrameTime();
+        const float playerVelocity = 80.0f;
+
         // Update
         //----------------------------------------------------------------------------------
-        if (IsKeyDown(KEY_RIGHT)) playerPosition.x += 2.0f;
-        if (IsKeyDown(KEY_LEFT)) playerPosition.x -= 2.0f;
-        if (IsKeyDown(KEY_UP)) playerPosition.y -= 2.0f;
-        if (IsKeyDown(KEY_DOWN)) playerPosition.y += 2.0f;
+        if (IsKeyDown(KEY_RIGHT)) playerPosition.x += (playerVelocity * deltaT);
+        if (IsKeyDown(KEY_LEFT)) playerPosition.x -= (playerVelocity * deltaT);
+        if (IsKeyDown(KEY_UP)) playerPosition.y -= ( playerVelocity * deltaT);
+        if (IsKeyDown(KEY_DOWN)) playerPosition.y += ( playerVelocity * deltaT);
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -37,9 +40,9 @@ int main(void)
 
             ClearBackground(background);
 
-            DrawText("move the player with arrow keys", 10, 10, 20, DARKGRAY);
+            /* DrawText("move the player with arrow keys", 10, 10, 20, DARKGRAY); */
 
-            DrawTextureV(playerTexture, playerPosition, RAYWHITE);
+            DrawTextureEx(playerTexture, playerPosition, 0.0f, 4.0f,  RAYWHITE);
 
         EndDrawing();
         //----------------------------------------------------------------------------------

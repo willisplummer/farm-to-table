@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "raymath.h"
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -23,18 +24,24 @@ int main(void) {
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
     const float deltaT = GetFrameTime();
-    const float playerVelocity = 80.0f;
+    const float playerSpeed = 80.0f;
 
     // Update
     //----------------------------------------------------------------------------------
+    Vector2 movement = {.x = 0, .y = 0};
     if (IsKeyDown(KEY_RIGHT))
-      playerPosition.x += (playerVelocity * deltaT);
+      movement.x += 1;
     if (IsKeyDown(KEY_LEFT))
-      playerPosition.x -= (playerVelocity * deltaT);
+      movement.x -= 1;
     if (IsKeyDown(KEY_UP))
-      playerPosition.y -= (playerVelocity * deltaT);
+      movement.y -= 1;
     if (IsKeyDown(KEY_DOWN))
-      playerPosition.y += (playerVelocity * deltaT);
+      movement.y += 1;
+
+    movement = Vector2Normalize(movement);
+    movement = Vector2Scale(movement, deltaT * playerSpeed);
+
+    playerPosition = Vector2Add(playerPosition, movement);
     //----------------------------------------------------------------------------------
 
     // Draw

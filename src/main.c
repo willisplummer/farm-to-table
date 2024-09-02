@@ -1,6 +1,26 @@
 #include "raylib.h"
 #include "raymath.h"
 
+typedef enum EntityArchetype {
+  nil = 0,
+  player = 1,
+  hoe = 2,
+  shovel = 3,
+} EntityArchetype;
+
+typedef struct Entity {
+  EntityArchetype archetype;
+  Vector2 pos;
+} Entity;
+
+#define MAX_ENTITY_COUNT 1024
+typedef struct World {
+  Entity entities[MAX_ENTITY_COUNT];
+} World;
+
+// {0} automatically zeros the data allocated for the struct
+static World world = {0};
+
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
@@ -11,6 +31,8 @@ int main(void) {
   const int screenWidth = 1280;
   const int screenHeight = 720;
   Color background = GetColor(0x4b692fff);
+
+  /* world = alloc(get_heap_allocator(), sizeof(world)) */
 
   InitWindow(screenWidth, screenHeight, gameTitle);
   Texture2D playerTexture = LoadTexture("assets/player.png");

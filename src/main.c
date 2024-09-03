@@ -257,6 +257,9 @@ void UpdateCameraCenterSmoothFollow(Camera2D *camera, Vector2 playerPos,
   }
 }
 
+#define ARENA_SIZE MB(20)
+static unsigned char backing_buffer[ARENA_SIZE];
+
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
@@ -268,12 +271,10 @@ int main(void) {
   const int screenHeight = 720;
   Color background = GetColor(0x4b692fff);
 
-  size_t arena_size = KB(50);
-  unsigned char backing_buffer[arena_size];
   Arena a = {0};
-  arena_init(&a, backing_buffer, arena_size);
+  arena_init(&a, backing_buffer, ARENA_SIZE);
 
-  world = arena_alloc(&a, KB(20));
+  world = arena_alloc(&a, sizeof(&world));
 
   InitWindow(screenWidth, screenHeight, gameTitle);
 

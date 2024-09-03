@@ -34,6 +34,7 @@ typedef unsigned char bool;
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 bool is_power_of_two(uintptr_t x) { return (x & (x - 1)) == 0; }
@@ -258,7 +259,7 @@ void UpdateCameraCenterSmoothFollow(Camera2D *camera, Vector2 playerPos,
 }
 
 #define ARENA_SIZE MB(20)
-static unsigned char backing_buffer[ARENA_SIZE];
+/* static unsigned char backing_buffer[ARENA_SIZE]; */
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -271,6 +272,7 @@ int main(void) {
   const int screenHeight = 720;
   Color background = GetColor(0x4b692fff);
 
+  void *backing_buffer = malloc(ARENA_SIZE);
   Arena a = {0};
   arena_init(&a, backing_buffer, ARENA_SIZE);
 

@@ -77,6 +77,23 @@ void SetupWeed(Vector2 pos) {
   entity->sprite_id = sprite_weed;
 }
 
+void UpdateCameraCenterSmoothFollow(Camera2D *camera, Vector2 playerPos,
+                                    float delta, int width, int height) {
+  static float minSpeed = 5;
+  static float minEffectLength = 1000;
+  static float fractionSpeed = 0.5f;
+
+  camera->offset = (Vector2){width / 2.0f, height / 2.0f};
+  Vector2 diff = Vector2Subtract(playerPos, camera->target);
+  float length = Vector2Length(diff);
+
+  if (length > minEffectLength) {
+    float speed = fmaxf(fractionSpeed * length, minSpeed);
+    camera->target =
+        Vector2Add(camera->target, Vector2Scale(diff, speed * delta / length));
+  }
+}
+
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
@@ -93,6 +110,12 @@ int main(void) {
   InitWindow(screenWidth, screenHeight, gameTitle);
 
   Vector2 playerPosition = {(float)screenWidth / 2, (float)screenHeight / 2};
+
+  Camera2D camera = {0};
+  camera.target = (Vector2){playerPosition.x, playerPosition.y};
+  camera.offset = (Vector2){screenWidth / 2.0f, screenHeight / 2.0f};
+  camera.rotation = 0.0f;
+  camera.zoom = 1.25f;
 
   SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
@@ -113,7 +136,7 @@ int main(void) {
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
     const float deltaT = GetFrameTime();
-    const float playerSpeed = 80.0f;
+    const float playerSpeed = 300;
 
     // Update
     //----------------------------------------------------------------------------------
@@ -131,6 +154,10 @@ int main(void) {
     movement = Vector2Scale(movement, deltaT * playerSpeed);
 
     playerPosition = Vector2Add(playerPosition, movement);
+    UpdateCameraCenterSmoothFollow(&camera, playerPosition, deltaT, screenWidth,
+                                   screenHeight);
+    //
+    //
     //----------------------------------------------------------------------------------
 
     // Draw
@@ -139,9 +166,10 @@ int main(void) {
 
     ClearBackground(background);
 
-    /* DrawText("move the player with arrow keys", 10, 10, 20, DARKGRAY); */
+    BeginMode2D(camera);
 
     DrawTextureEx(sprites[sprite_player], playerPosition, 0.0f, 4.0f, RAYWHITE);
+    camera.target = playerPosition;
 
     for (int i = 0; i < MAX_ENTITY_COUNT; i++) {
       Entity *existing_entity = &world.entities[i];
@@ -150,6 +178,10 @@ int main(void) {
                       0.0f, 4.0f, RAYWHITE);
       }
     }
+
+    EndMode2D();
+
+    DrawText("Farm 2 Table", screenWidth - 300, 10, 40, RED);
 
     EndDrawing();
     //----------------------------------------------------------------------------------

@@ -77,6 +77,7 @@ void SetupWeed(Vector2 pos) {
   entity->sprite_id = sprite_weed;
 }
 
+// TODO
 void UpdateCameraCenterSmoothFollow(Camera2D *camera, Vector2 playerPos,
                                     float delta, int width, int height) {
   static float minSpeed = 5;

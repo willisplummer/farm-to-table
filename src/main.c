@@ -100,13 +100,12 @@ int main(void) {
   sprites[sprite_weed] = LoadTexture("assets/weed.png");
   sprites[sprite_rock] = LoadTexture("assets/rock.png");
 
-  SetupRock((Vector2){0, 0});
+  SetupRock((Vector2){50, 80});
   SetupRock((Vector2){100, 100});
   SetupRock((Vector2){500, 500});
-  SetupWeed((Vector2){20, 20});
-  SetupWeed((Vector2){50, 50});
-  SetupWeed(
-      (Vector2){500, 500}); // todo: why isnt ths at the same location as rock?
+  SetupWeed((Vector2){20, 400});
+  SetupWeed((Vector2){400, 50});
+  SetupWeed((Vector2){500, 54});
 
   //--------------------------------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include "rlgl.h"
 #include <math.h>
 
 #define assert(cond, ...)                                                      \
@@ -169,80 +170,8 @@ void temp_arena_memory_end(Temp_Arena_Memory temp) {
   temp.arena->curr_offset = temp.curr_offset;
 }
 
-// ranges
 //
-
-typedef struct Range1f {
-  float min;
-  float max;
-} Range1f;
-// ...
-
-typedef struct Range2f {
-  Vector2 min;
-  Vector2 max;
-} Range2f;
-
-inline Range2f range2f_make(Vector2 min, Vector2 max) {
-  return (Range2f){min, max};
-}
-
-Vector2 v2(float x, float y) { return (Vector2){x, y}; }
-
-Range2f range2f_shift(Range2f r, Vector2 shift) {
-  r.min = Vector2Add(r.min, shift);
-  r.max = Vector2Add(r.max, shift);
-  return r;
-}
-
-Range2f range2f_make_center_center(Vector2 pos, Vector2 size) {
-  return (Range2f){Vector2Add(pos, Vector2Scale(size, -0.5)),
-                   Vector2Add(pos, Vector2Scale(size, 0.5))};
-}
-
-// ?????
-Range2f range2f_make_bottom_center(Vector2 size) {
-  Range2f range = {0};
-  range.max = size;
-  range = range2f_shift(range, v2(size.x * -0.5, 0.0));
-  return range;
-}
-
-Vector2 range2f_size(Range2f range) {
-  Vector2 size = {0};
-  size = Vector2Subtract(range.min, range.max);
-  size.x = fabsf(size.x);
-  size.y = fabsf(size.y);
-  return size;
-}
-
-bool range2f_contains(Range2f range, Vector2 v) {
-  return v.x >= range.min.x && v.x <= range.max.x && v.y >= range.min.y &&
-         v.y <= range.max.y;
-}
-
-Vector2 range2f_get_center(Range2f r) {
-  return (Vector2){(r.max.x - r.min.x) * 0.5 + r.min.x,
-                   (r.max.y - r.min.y) * 0.5 + r.min.y};
-}
-
-Range2f range2f_make_bottom_left(Vector2 pos, Vector2 size) {
-  return (Range2f){pos, Vector2Add(pos, size)};
-}
-
-Range2f range2f_make_top_right(Vector2 pos, Vector2 size) {
-  return (Range2f){Vector2Subtract(pos, size), pos};
-}
-
-Range2f range2f_make_bottom_right(Vector2 pos, Vector2 size) {
-  return (Range2f){v2(pos.x - size.x, pos.y), v2(pos.x, pos.y + size.y)};
-}
-
-Range2f range2f_make_center_right(Vector2 pos, Vector2 size) {
-  return (Range2f){v2(pos.x - size.x, pos.y - size.y * 0.5),
-                   v2(pos.x, pos.y + size.y * 0.5)};
-}
-
+// Game Code
 //
 
 typedef enum EntityArchetype {
@@ -302,25 +231,53 @@ Entity *entity_create() {
   return entity_found;
 }
 
+const float tileWidth = 40;
+
+int world_pos_to_tile_pos(float world_pos) {
+  return roundf(world_pos / tileWidth);
+}
+
+float tile_pos_to_world_pos(int tile_pos) { return tileWidth * tile_pos; }
+
+Vector2 round_v2_to_tile(Vector2 v2) {
+  v2.x = tile_pos_to_world_pos(world_pos_to_tile_pos(v2.x));
+  v2.y = tile_pos_to_world_pos(world_pos_to_tile_pos(v2.y));
+  return v2;
+}
+
 Entity *SetupPlayer(Vector2 pos) {
   Entity *entity = entity_create();
-  entity->pos = pos;
+
+  entity->pos = round_v2_to_tile(pos);
+  entity->pos.y -= tileWidth * 0.5;
+  /* entity->pos.x -= tileWidth * 0.5; */
+
   entity->archetype = arch_player;
   entity->sprite_id = sprite_player;
   return entity;
 }
 void SetupRock(Vector2 pos) {
   Entity *entity = entity_create();
-  entity->pos = pos;
+
+  entity->pos = round_v2_to_tile(pos);
+  entity->pos.y -= tileWidth * 0.5;
+  /* entity->pos.x += tileWidth * 0.125; */
+
   entity->archetype = arch_rock;
   entity->sprite_id = sprite_rock;
 }
 void SetupWeed(Vector2 pos) {
   Entity *entity = entity_create();
-  entity->pos = pos;
+
+  entity->pos = round_v2_to_tile(pos);
+  entity->pos.y -= tileWidth * 0.5;
+  entity->pos.x += tileWidth * 0.25;
+
   entity->archetype = arch_weed;
   entity->sprite_id = sprite_weed;
 }
+
+Vector2 v2(float x, float y) { return (Vector2){x, y}; }
 
 void UpdateCameraCenterSmoothFollow(Camera2D *camera, Entity *player,
                                     float delta, int width, int height) {
@@ -376,12 +333,12 @@ int main(void) {
   sprites[sprite_weed] = LoadTexture("assets/weed.png");
   sprites[sprite_rock] = LoadTexture("assets/rock.png");
 
-  SetupRock((Vector2){50, 80});
-  SetupRock((Vector2){100, 100});
-  SetupRock((Vector2){500, 500});
-  SetupWeed((Vector2){20, 400});
-  SetupWeed((Vector2){400, 50});
-  SetupWeed((Vector2){500, 54});
+  for (int i = 0; i < 10; i++) {
+    SetupRock(v2(i * 100, i * 100));
+  }
+  for (int i = 0; i < 10; i++) {
+    SetupWeed(v2(i * 20, i * 15));
+  }
 
   //--------------------------------------------------------------------------------------
 
@@ -413,6 +370,9 @@ int main(void) {
     Vector2 mouseScreenPosition = GetMousePosition();
     Vector2 mouseWorldPosition =
         GetScreenToWorld2D(mouseScreenPosition, camera);
+    // NOTE: alignment didnt feel right before - this slight adjustment fixes
+    mouseWorldPosition = Vector2Subtract(mouseWorldPosition, v2(10, 10));
+    Vector2 mouseTilePosition = round_v2_to_tile(mouseWorldPosition);
 
     const float scale = 4.0;
 
@@ -426,24 +386,41 @@ int main(void) {
 
     BeginMode2D(camera);
 
+    // TODO: maybe this isn't the right way to approach this
+    // Draw the 3d grid, rotated 90 degrees and centered around 0,0
+    // just so we have something in the XY plane
+    rlPushMatrix();
+    rlTranslatef(0, 25 * tileWidth, 0);
+    rlRotatef(90, 1, 0, 0);
+    // I think the 1000 here is how many tiles
+    DrawGrid(1000, tileWidth);
+    rlPopMatrix();
+
+    Rectangle mouseRectangle = (Rectangle){
+        mouseTilePosition.x, mouseTilePosition.y, tileWidth, tileWidth};
+    DrawRectangleRec(mouseRectangle, RED);
+
     for (int i = 0; i < MAX_ENTITY_COUNT; i++) {
       Entity *existing_entity = &world->entities[i];
       if (existing_entity && existing_entity->is_valid) {
         Texture2D sprite = sprites[existing_entity->sprite_id];
 
-        Color col = RAYWHITE;
-
-        Rectangle bounds = {existing_entity->pos.x, existing_entity->pos.y,
-                            sprite.width * scale, sprite.height * scale};
+        Rectangle entityBounds = {existing_entity->pos.x,
+                                  existing_entity->pos.y, sprite.width * scale,
+                                  sprite.height * scale};
 
         // Check if point is inside rectangle
-        bool mouseInBounds = CheckCollisionPointRec(mouseWorldPosition, bounds);
-        if (mouseInBounds) {
-          col = RED;
-        }
+        // TODO: instead - check if the mouse tile is the same as the entity's
+        // tile
+        bool mouseInBounds = CheckCollisionRecs(mouseRectangle, entityBounds);
+
+        /* Color col = RAYWHITE; */
+        /* if (mouseInBounds) { */
+        /*   col = RED; */
+        /* } */
 
         /* Debug Rectangles  */
-        DrawRectangleRec(bounds, col);
+        /* DrawRectangleRec(bounds, col); */
 
         DrawTextureEx(sprite, existing_entity->pos, 0.0f, scale, RAYWHITE);
 

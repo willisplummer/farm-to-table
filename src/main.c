@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include <math.h>
 
 #define assert(cond, ...)                                                      \
   { assert_line(__LINE__, cond, __VA_ARGS__) }
@@ -168,6 +169,80 @@ void temp_arena_memory_end(Temp_Arena_Memory temp) {
   temp.arena->curr_offset = temp.curr_offset;
 }
 
+// ranges
+//
+
+typedef struct Range1f {
+  float min;
+  float max;
+} Range1f;
+// ...
+
+typedef struct Range2f {
+  Vector2 min;
+  Vector2 max;
+} Range2f;
+
+inline Range2f range2f_make(Vector2 min, Vector2 max) {
+  return (Range2f){min, max};
+}
+
+Vector2 v2(float x, float y) { return (Vector2){x, y}; }
+
+Range2f range2f_shift(Range2f r, Vector2 shift) {
+  r.min = Vector2Add(r.min, shift);
+  r.max = Vector2Add(r.max, shift);
+  return r;
+}
+
+Range2f range2f_make_center_center(Vector2 pos, Vector2 size) {
+  return (Range2f){Vector2Add(pos, Vector2Scale(size, -0.5)),
+                   Vector2Add(pos, Vector2Scale(size, 0.5))};
+}
+
+// ?????
+Range2f range2f_make_bottom_center(Vector2 size) {
+  Range2f range = {0};
+  range.max = size;
+  range = range2f_shift(range, v2(size.x * -0.5, 0.0));
+  return range;
+}
+
+Vector2 range2f_size(Range2f range) {
+  Vector2 size = {0};
+  size = Vector2Subtract(range.min, range.max);
+  size.x = fabsf(size.x);
+  size.y = fabsf(size.y);
+  return size;
+}
+
+bool range2f_contains(Range2f range, Vector2 v) {
+  return v.x >= range.min.x && v.x <= range.max.x && v.y >= range.min.y &&
+         v.y <= range.max.y;
+}
+
+Vector2 range2f_get_center(Range2f r) {
+  return (Vector2){(r.max.x - r.min.x) * 0.5 + r.min.x,
+                   (r.max.y - r.min.y) * 0.5 + r.min.y};
+}
+
+Range2f range2f_make_bottom_left(Vector2 pos, Vector2 size) {
+  return (Range2f){pos, Vector2Add(pos, size)};
+}
+
+Range2f range2f_make_top_right(Vector2 pos, Vector2 size) {
+  return (Range2f){Vector2Subtract(pos, size), pos};
+}
+
+Range2f range2f_make_bottom_right(Vector2 pos, Vector2 size) {
+  return (Range2f){v2(pos.x - size.x, pos.y), v2(pos.x, pos.y + size.y)};
+}
+
+Range2f range2f_make_center_right(Vector2 pos, Vector2 size) {
+  return (Range2f){v2(pos.x - size.x, pos.y - size.y * 0.5),
+                   v2(pos.x, pos.y + size.y * 0.5)};
+}
+
 //
 
 typedef enum EntityArchetype {
@@ -227,6 +302,13 @@ Entity *entity_create() {
   return entity_found;
 }
 
+Entity *SetupPlayer(Vector2 pos) {
+  Entity *entity = entity_create();
+  entity->pos = pos;
+  entity->archetype = arch_player;
+  entity->sprite_id = sprite_player;
+  return entity;
+}
 void SetupRock(Vector2 pos) {
   Entity *entity = entity_create();
   entity->pos = pos;
@@ -240,15 +322,14 @@ void SetupWeed(Vector2 pos) {
   entity->sprite_id = sprite_weed;
 }
 
-// TODO
-void UpdateCameraCenterSmoothFollow(Camera2D *camera, Vector2 playerPos,
+void UpdateCameraCenterSmoothFollow(Camera2D *camera, Entity *player,
                                     float delta, int width, int height) {
-  static float minSpeed = 5;
-  static float minEffectLength = 1000;
-  static float fractionSpeed = 0.5f;
+  static float minSpeed = 30;
+  static float minEffectLength = 5;
+  static float fractionSpeed = 0.9f;
 
   camera->offset = (Vector2){width / 2.0f, height / 2.0f};
-  Vector2 diff = Vector2Subtract(playerPos, camera->target);
+  Vector2 diff = Vector2Subtract(player->pos, camera->target);
   float length = Vector2Length(diff);
 
   if (length > minEffectLength) {
@@ -280,10 +361,11 @@ int main(void) {
 
   InitWindow(screenWidth, screenHeight, gameTitle);
 
-  Vector2 playerPosition = {(float)screenWidth / 2, (float)screenHeight / 2};
+  Entity *player =
+      SetupPlayer((Vector2){screenWidth / 2.0f, screenHeight / 2.0f});
 
   Camera2D camera = {0};
-  camera.target = (Vector2){playerPosition.x, playerPosition.y};
+  camera.target = player->pos;
   camera.offset = (Vector2){screenWidth / 2.0f, screenHeight / 2.0f};
   camera.rotation = 0.0f;
   camera.zoom = 1.25f;
@@ -324,11 +406,16 @@ int main(void) {
     movement = Vector2Normalize(movement);
     movement = Vector2Scale(movement, deltaT * playerSpeed);
 
-    playerPosition = Vector2Add(playerPosition, movement);
-    UpdateCameraCenterSmoothFollow(&camera, playerPosition, deltaT, screenWidth,
+    player->pos = Vector2Add(player->pos, movement);
+    UpdateCameraCenterSmoothFollow(&camera, player, deltaT, screenWidth,
                                    screenHeight);
-    //
-    //
+
+    Vector2 mouseScreenPosition = GetMousePosition();
+    Vector2 mouseWorldPosition =
+        GetScreenToWorld2D(mouseScreenPosition, camera);
+
+    const float scale = 4.0;
+
     //----------------------------------------------------------------------------------
 
     // Draw
@@ -339,20 +426,58 @@ int main(void) {
 
     BeginMode2D(camera);
 
-    DrawTextureEx(sprites[sprite_player], playerPosition, 0.0f, 4.0f, RAYWHITE);
-    camera.target = playerPosition;
-
     for (int i = 0; i < MAX_ENTITY_COUNT; i++) {
       Entity *existing_entity = &world->entities[i];
       if (existing_entity && existing_entity->is_valid) {
-        DrawTextureEx(sprites[existing_entity->sprite_id], existing_entity->pos,
-                      0.0f, 4.0f, RAYWHITE);
+        Texture2D sprite = sprites[existing_entity->sprite_id];
+
+        Color col = RAYWHITE;
+
+        Rectangle bounds = {existing_entity->pos.x, existing_entity->pos.y,
+                            sprite.width * scale, sprite.height * scale};
+
+        // Check if point is inside rectangle
+        bool mouseInBounds = CheckCollisionPointRec(mouseWorldPosition, bounds);
+        if (mouseInBounds) {
+          col = RED;
+        }
+
+        /* Debug Rectangles  */
+        DrawRectangleRec(bounds, col);
+
+        DrawTextureEx(sprite, existing_entity->pos, 0.0f, scale, RAYWHITE);
+
+        if (existing_entity->archetype != arch_player && mouseInBounds &&
+            IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+          existing_entity->is_valid = false;
+        }
+
+        // TODO: I think this should be a temp arena allocation - it's only
+        // needed for this frame -- or is it fine that it just comes from the
+        // stack - maybe with too many objects I'd get a stack overflow here?
+
+        // DEBUG - print all entities' positions below them
+        /* char posStr[100]; */
+        /* sprintf(posStr, "(%.2f, %.2f)", existing_entity->pos.x, */
+        /*         existing_entity->pos.y); */
+        /* DrawText(posStr, existing_entity->pos.x, existing_entity->pos.y + 30,
+         */
+        /*          20, RED); */
       }
     }
 
     EndMode2D();
 
-    DrawText("Farm 2 Table", screenWidth - 300, 10, 40, RED);
+    int titleFontX = screenWidth - 300;
+    int titleFontY = 10;
+    int titleFontSize = 40;
+    DrawText("Farm 2 Table", titleFontX, titleFontY, titleFontSize, RED);
+
+    /* Debug Render Mouse Position */
+    /* char posStr[1000]; */
+    /* sprintf(posStr, "(%.2f, %.2f)", mouseWorldPosition.x,
+     * mouseWorldPosition.y); */
+    /* DrawText(posStr, mouseWorldPosition.x, mouseWorldPosition.y, 20, RED); */
 
     EndDrawing();
     //----------------------------------------------------------------------------------

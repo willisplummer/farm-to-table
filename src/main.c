@@ -181,6 +181,7 @@ typedef enum EntityArchetype {
   arch_shovel = 3,
   arch_weed = 4,
   arch_rock = 5,
+  arch_item = 6
 } EntityArchetype;
 
 typedef enum SpriteId {
@@ -205,12 +206,15 @@ typedef struct Entity {
   EntityArchetype archetype;
   Vector2 pos;
   bool is_valid;
+  int health;
   SpriteId sprite_id;
 } Entity;
 
 #define MAX_ENTITY_COUNT 1024
+#define MAX_INVENTORY_COUNT 8
 typedef struct World {
   Entity entities[MAX_ENTITY_COUNT];
+  Entity *inventory[MAX_INVENTORY_COUNT];
 } World;
 
 World *world = 0;
@@ -245,33 +249,42 @@ Vector2 round_v2_to_tile(Vector2 v2) {
   return v2;
 }
 
+const int playerHealth = 5;
+const int rockHealth = 3;
+const int weedHealth = 2;
+
 Entity *SetupPlayer(Vector2 pos) {
   Entity *entity = entity_create();
 
   entity->pos = round_v2_to_tile(pos);
   entity->pos.y -= tileWidth * 0.5;
+  entity->health = playerHealth;
   /* entity->pos.x -= tileWidth * 0.5; */
 
   entity->archetype = arch_player;
   entity->sprite_id = sprite_player;
   return entity;
 }
+
 void SetupRock(Vector2 pos) {
   Entity *entity = entity_create();
 
   entity->pos = round_v2_to_tile(pos);
   entity->pos.y -= tileWidth * 0.5;
   /* entity->pos.x += tileWidth * 0.125; */
+  entity->health = rockHealth;
 
   entity->archetype = arch_rock;
   entity->sprite_id = sprite_rock;
 }
+
 void SetupWeed(Vector2 pos) {
   Entity *entity = entity_create();
 
   entity->pos = round_v2_to_tile(pos);
   entity->pos.y -= tileWidth * 0.5;
   entity->pos.x += tileWidth * 0.25;
+  entity->health = weedHealth;
 
   entity->archetype = arch_weed;
   entity->sprite_id = sprite_weed;
@@ -329,9 +342,9 @@ int main(void) {
 
   SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
-  sprites[sprite_player] = LoadTexture("assets/player.png");
-  sprites[sprite_weed] = LoadTexture("assets/weed.png");
-  sprites[sprite_rock] = LoadTexture("assets/rock.png");
+  sprites[sprite_player] = LoadTexture("assets/sprites/player.png");
+  sprites[sprite_weed] = LoadTexture("assets/sprites/weed.png");
+  sprites[sprite_rock] = LoadTexture("assets/sprites/rock.png");
 
   for (int i = 0; i < 10; i++) {
     SetupRock(v2(i * 100, i * 100));
@@ -426,7 +439,10 @@ int main(void) {
 
         if (existing_entity->archetype != arch_player && mouseInBounds &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-          existing_entity->is_valid = false;
+          existing_entity->health -= 1;
+          if (existing_entity->health <= 0) {
+            existing_entity->is_valid = false;
+          }
         }
 
         // TODO: I think this should be a temp arena allocation - it's only

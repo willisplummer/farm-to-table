@@ -181,7 +181,10 @@ typedef enum EntityArchetype {
   arch_shovel = 3,
   arch_weed = 4,
   arch_rock = 5,
-  arch_item = 6
+  arch_item = 6,
+  arch_item_wood = 7,
+  arch_item_plant_matter = 8,
+  arch_item_stone = 9,
 } EntityArchetype;
 
 typedef enum SpriteId {
@@ -191,6 +194,9 @@ typedef enum SpriteId {
   sprite_shovel,
   sprite_weed,
   sprite_rock,
+  sprite_wood,
+  sprite_stone_material,
+  sprite_plant_material,
   SPRITE_MAX
 } SpriteId;
 
@@ -208,6 +214,7 @@ typedef struct Entity {
   bool is_valid;
   int health;
   SpriteId sprite_id;
+  bool destroyable_world_item;
 } Entity;
 
 #define MAX_ENTITY_COUNT 1024
@@ -260,6 +267,7 @@ Entity *SetupPlayer(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   entity->health = playerHealth;
   /* entity->pos.x -= tileWidth * 0.5; */
+  entity->destroyable_world_item = false;
 
   entity->archetype = arch_player;
   entity->sprite_id = sprite_player;
@@ -273,6 +281,7 @@ void SetupRock(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   /* entity->pos.x += tileWidth * 0.125; */
   entity->health = rockHealth;
+  entity->destroyable_world_item = true;
 
   entity->archetype = arch_rock;
   entity->sprite_id = sprite_rock;
@@ -285,9 +294,22 @@ void SetupWeed(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   entity->pos.x += tileWidth * 0.25;
   entity->health = weedHealth;
+  entity->destroyable_world_item = true;
 
   entity->archetype = arch_weed;
   entity->sprite_id = sprite_weed;
+}
+
+void SetupItemWood(Vector2 pos) {
+  Entity *entity = entity_create();
+
+  entity->pos = round_v2_to_tile(pos);
+  entity->pos.y -= tileWidth * 0.5;
+  entity->pos.x += tileWidth * 0.5;
+  entity->destroyable_world_item = false;
+
+  entity->archetype = arch_item_wood;
+  entity->sprite_id = sprite_wood;
 }
 
 Vector2 v2(float x, float y) { return (Vector2){x, y}; }
@@ -345,6 +367,15 @@ int main(void) {
   sprites[sprite_player] = LoadTexture("assets/sprites/player.png");
   sprites[sprite_weed] = LoadTexture("assets/sprites/weed.png");
   sprites[sprite_rock] = LoadTexture("assets/sprites/rock.png");
+
+  sprites[sprite_shovel] = LoadTexture("assets/sprites/shovel.png");
+  sprites[sprite_hoe] = LoadTexture("assets/sprites/hoe.png");
+
+  sprites[sprite_wood] = LoadTexture("assets/sprites/wood.png");
+  sprites[sprite_stone_material] =
+      LoadTexture("assets/sprites/stone_material.png");
+  sprites[sprite_plant_material] =
+      LoadTexture("assets/sprites/plant_material.png");
 
   for (int i = 0; i < 10; i++) {
     SetupRock(v2(i * 100, i * 100));
@@ -437,11 +468,14 @@ int main(void) {
 
         DrawTextureEx(sprite, existing_entity->pos, 0.0f, scale, RAYWHITE);
 
-        if (existing_entity->archetype != arch_player && mouseInBounds &&
+        if (existing_entity->destroyable_world_item && mouseInBounds &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
           existing_entity->health -= 1;
           if (existing_entity->health <= 0) {
             existing_entity->is_valid = false;
+            if (existing_entity->archetype == arch_weed) {
+              SetupItemWood(existing_entity->pos);
+            }
           }
         }
 

@@ -474,6 +474,8 @@ int main(void) {
 
         /* Debug Rectangles  */
         /* DrawRectangleRec(bounds, col); */
+
+        // make collectibles bounce
         Vector2 translation = v2(0, 0);
         if (existing_entity->is_collectable) {
           translation.y = sin_breathe(GetTime(), 5.0) * 10;

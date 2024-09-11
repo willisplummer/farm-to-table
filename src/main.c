@@ -220,7 +220,7 @@ typedef struct Entity {
   bool is_valid;
   int health;
   SpriteId sprite_id;
-  bool is_collectable;
+  bool is_item;
   bool is_destroyable_world_item;
 } Entity;
 
@@ -245,6 +245,9 @@ Entity *entity_create() {
     }
   }
   assert(entity_found, "No more free entities!");
+
+  memset(entity_found, 0, sizeof(Entity));
+
   entity_found->is_valid = true;
   return entity_found;
 }
@@ -274,7 +277,6 @@ Entity *SetupPlayer(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   entity->health = playerHealth;
   /* entity->pos.x -= tileWidth * 0.5; */
-  entity->is_destroyable_world_item = false;
 
   entity->archetype = arch_player;
   entity->sprite_id = sprite_player;
@@ -314,8 +316,7 @@ void SetupItemWood(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   entity->pos.x += tileWidth * 0.5;
 
-  entity->is_destroyable_world_item = false;
-  entity->is_collectable = true;
+  entity->is_item = true;
 
   entity->archetype = arch_item_wood;
   entity->sprite_id = sprite_wood;
@@ -477,7 +478,7 @@ int main(void) {
 
         // make collectibles bounce
         Vector2 translation = v2(0, 0);
-        if (existing_entity->is_collectable) {
+        if (existing_entity->is_item) {
           translation.y = sin_breathe(GetTime(), 5.0) * 10;
         }
 

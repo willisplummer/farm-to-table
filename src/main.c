@@ -63,6 +63,12 @@ uintptr_t align_forward(uintptr_t ptr, size_t align) {
 #define DEFAULT_ALIGNMENT (2 * sizeof(void *))
 #endif
 
+//
+float sin_breathe(float time, float rate) {
+  return (sin(time * rate) + 1.0) / 2.0;
+}
+//
+
 typedef struct Arena Arena;
 struct Arena {
   unsigned char *buf;
@@ -214,7 +220,8 @@ typedef struct Entity {
   bool is_valid;
   int health;
   SpriteId sprite_id;
-  bool destroyable_world_item;
+  bool is_collectable;
+  bool is_destroyable_world_item;
 } Entity;
 
 #define MAX_ENTITY_COUNT 1024
@@ -267,7 +274,7 @@ Entity *SetupPlayer(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   entity->health = playerHealth;
   /* entity->pos.x -= tileWidth * 0.5; */
-  entity->destroyable_world_item = false;
+  entity->is_destroyable_world_item = false;
 
   entity->archetype = arch_player;
   entity->sprite_id = sprite_player;
@@ -281,7 +288,7 @@ void SetupRock(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   /* entity->pos.x += tileWidth * 0.125; */
   entity->health = rockHealth;
-  entity->destroyable_world_item = true;
+  entity->is_destroyable_world_item = true;
 
   entity->archetype = arch_rock;
   entity->sprite_id = sprite_rock;
@@ -294,7 +301,7 @@ void SetupWeed(Vector2 pos) {
   entity->pos.y -= tileWidth * 0.5;
   entity->pos.x += tileWidth * 0.25;
   entity->health = weedHealth;
-  entity->destroyable_world_item = true;
+  entity->is_destroyable_world_item = true;
 
   entity->archetype = arch_weed;
   entity->sprite_id = sprite_weed;
@@ -306,7 +313,9 @@ void SetupItemWood(Vector2 pos) {
   entity->pos = round_v2_to_tile(pos);
   entity->pos.y -= tileWidth * 0.5;
   entity->pos.x += tileWidth * 0.5;
-  entity->destroyable_world_item = false;
+
+  entity->is_destroyable_world_item = false;
+  entity->is_collectable = true;
 
   entity->archetype = arch_item_wood;
   entity->sprite_id = sprite_wood;
@@ -465,10 +474,15 @@ int main(void) {
 
         /* Debug Rectangles  */
         /* DrawRectangleRec(bounds, col); */
+        Vector2 translation = v2(0, 0);
+        if (existing_entity->is_collectable) {
+          translation.y = sin_breathe(GetTime(), 5.0) * 10;
+        }
 
-        DrawTextureEx(sprite, existing_entity->pos, 0.0f, scale, RAYWHITE);
+        DrawTextureEx(sprite, Vector2Add(existing_entity->pos, translation),
+                      0.0f, scale, RAYWHITE);
 
-        if (existing_entity->destroyable_world_item && mouseInBounds &&
+        if (existing_entity->is_destroyable_world_item && mouseInBounds &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
           existing_entity->health -= 1;
           if (existing_entity->health <= 0) {

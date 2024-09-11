@@ -194,6 +194,7 @@ typedef enum EntityArchetype {
 } EntityArchetype;
 // TODO: there has to be a better way to do this
 char *getArchetypeName(EntityArchetype arch) {
+  printf("%i", arch);
   switch (arch) {
   arch_player:
     return "player";
@@ -595,8 +596,9 @@ int main(void) {
       if (world->inventory[i] > 0) {
 
         char posStr[1000];
-        DrawText(getArchetypeName(i), titleFontX, titleFontY + 20 * (i + 2),
-                 titleFontSize, RED);
+        sprintf(posStr, "%s: %d", getArchetypeName(i), world->inventory[i]);
+        DrawText(posStr, titleFontX, titleFontY + 20 * (i + 2), titleFontSize,
+                 RED);
       }
     }
 

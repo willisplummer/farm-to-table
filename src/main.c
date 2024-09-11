@@ -181,7 +181,7 @@ void temp_arena_memory_end(Temp_Arena_Memory temp) {
 //
 
 typedef enum EntityArchetype {
-  arch_nil,
+  arch_nil = 0,
   arch_player,
   arch_hoe,
   arch_shovel,
@@ -226,7 +226,7 @@ char *getArchetypeName(EntityArchetype arch) {
   }
 };
 typedef enum SpriteId {
-  sprite_nil,
+  sprite_nil = 0,
   sprite_player,
   sprite_hoe,
   sprite_shovel,

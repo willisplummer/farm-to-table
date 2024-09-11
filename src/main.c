@@ -181,18 +181,49 @@ void temp_arena_memory_end(Temp_Arena_Memory temp) {
 //
 
 typedef enum EntityArchetype {
-  arch_nil = 0,
-  arch_player = 1,
-  arch_hoe = 2,
-  arch_shovel = 3,
-  arch_weed = 4,
-  arch_rock = 5,
-  arch_item = 6,
-  arch_item_wood = 7,
-  arch_item_plant_matter = 8,
-  arch_item_stone = 9,
+  arch_nil,
+  arch_player,
+  arch_hoe,
+  arch_shovel,
+  arch_weed,
+  arch_rock,
+  arch_item_wood,
+  arch_item_plant_matter,
+  arch_item_stone,
+  ARCH_MAX
 } EntityArchetype;
-
+// TODO: there has to be a better way to do this
+char *getArchetypeName(EntityArchetype arch) {
+  switch (arch) {
+  arch_player:
+    return "player";
+    break;
+  arch_hoe:
+    return "hoe";
+    break;
+  arch_shovel:
+    return "shovel";
+    break;
+  arch_weed:
+    return "weed";
+    break;
+  arch_rock:
+    return "rock";
+    break;
+  arch_item_wood:
+    return "item wood";
+    break;
+  arch_item_stone:
+    return "item stone";
+    break;
+  arch_item_plant_matter:
+    return "item plant matter";
+    break;
+  default:
+    return "nil";
+    break;
+  }
+};
 typedef enum SpriteId {
   sprite_nil,
   sprite_player,
@@ -205,6 +236,38 @@ typedef enum SpriteId {
   sprite_plant_material,
   SPRITE_MAX
 } SpriteId;
+
+SpriteId getArchetypeSpriteId(EntityArchetype arch) {
+  switch (arch) {
+  arch_player:
+    return sprite_player;
+    break;
+  arch_hoe:
+    return sprite_hoe;
+    break;
+  arch_shovel:
+    return sprite_shovel;
+    break;
+  arch_weed:
+    return sprite_weed;
+    break;
+  arch_rock:
+    return sprite_rock;
+    break;
+  arch_item_wood:
+    return sprite_wood;
+    break;
+  arch_item_stone:
+    return sprite_stone_material;
+    break;
+  arch_item_plant_matter:
+    return sprite_plant_material;
+    break;
+  default:
+    return sprite_nil;
+    break;
+  }
+};
 
 Texture2D sprites[SPRITE_MAX];
 Texture2D *get_sprite(SpriteId id) {
@@ -225,10 +288,10 @@ typedef struct Entity {
 } Entity;
 
 #define MAX_ENTITY_COUNT 1024
-#define MAX_INVENTORY_COUNT 8
+#define MAX_INVENTORY_COUNT ARCH_MAX
 typedef struct World {
   Entity entities[MAX_ENTITY_COUNT];
-  Entity *inventory[MAX_INVENTORY_COUNT];
+  int inventory[MAX_INVENTORY_COUNT];
 } World;
 
 World *world = 0;
@@ -267,6 +330,7 @@ Vector2 round_v2_to_tile(Vector2 v2) {
 }
 
 const int playerHealth = 5;
+const float playerPickupRadius = 20.0;
 const int rockHealth = 3;
 const int weedHealth = 2;
 
@@ -373,6 +437,8 @@ int main(void) {
   camera.zoom = 1.25f;
 
   SetTargetFPS(60); // Set our game to run at 60 frames-per-second
+
+  sprites[sprite_nil] = LoadTexture("assets/sprites/nil_texture.png");
 
   sprites[sprite_player] = LoadTexture("assets/sprites/player.png");
   sprites[sprite_weed] = LoadTexture("assets/sprites/weed.png");
@@ -496,6 +562,14 @@ int main(void) {
           }
         }
 
+        if (existing_entity->is_item &&
+            fabs(Vector2Distance(player->pos, existing_entity->pos)) <
+                playerPickupRadius) {
+
+          world->inventory[existing_entity->archetype] += 1;
+          existing_entity->is_valid = false;
+        }
+
         // TODO: I think this should be a temp arena allocation - it's only
         // needed for this frame -- or is it fine that it just comes from the
         // stack - maybe with too many objects I'd get a stack overflow here?
@@ -515,7 +589,16 @@ int main(void) {
     int titleFontX = screenWidth - 300;
     int titleFontY = 10;
     int titleFontSize = 40;
-    DrawText("Farm 2 Table", titleFontX, titleFontY, titleFontSize, RED);
+    DrawText(gameTitle, titleFontX, titleFontY, titleFontSize, RED);
+    DrawText("Inventory:", titleFontX, titleFontY + 20, titleFontSize, RED);
+    for (int i = 0; i < MAX_INVENTORY_COUNT; i++) {
+      if (world->inventory[i] > 0) {
+
+        char posStr[1000];
+        DrawText(getArchetypeName(i), titleFontX, titleFontY + 20 * (i + 2),
+                 titleFontSize, RED);
+      }
+    }
 
     /* Debug Render Mouse Position */
     /* char posStr[1000]; */

@@ -196,28 +196,28 @@ typedef enum EntityArchetype {
 char *getArchetypeName(EntityArchetype arch) {
   printf("GET ARCH NAME: %i", arch);
   switch (arch) {
-  arch_player:
+  case arch_player:
     return "player";
     break;
-  arch_hoe:
+  case arch_hoe:
     return "hoe";
     break;
-  arch_shovel:
+  case arch_shovel:
     return "shovel";
     break;
-  arch_weed:
+  case arch_weed:
     return "weed";
     break;
-  arch_rock:
+  case arch_rock:
     return "rock";
     break;
-  arch_item_wood:
+  case arch_item_wood:
     return "item wood";
     break;
-  arch_item_stone:
+  case arch_item_stone:
     return "item stone";
     break;
-  arch_item_plant_matter:
+  case arch_item_plant_matter:
     return "item plant matter";
     break;
   default:

@@ -197,7 +197,7 @@ typedef enum EntityArchetype {
   arch_item_stone,
   ARCH_MAX
 } EntityArchetype;
-// TODO: there has to be a better way to do this
+
 char *getArchetypeName(EntityArchetype arch) {
   switch (arch) {
   case arch_player:

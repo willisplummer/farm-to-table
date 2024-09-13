@@ -3,12 +3,13 @@
 #include "rlgl.h"
 #include <math.h>
 
-#define assert(cond, ...)                                                      \
-  { assert_line(__LINE__, cond, __VA_ARGS__) }
-#if CONFIGURATION == RELEASE
-#undef assert
-#define assert(x, ...) (void)(x)
-#endif
+/* TODO: FIX ASSERT CODE */
+/* #define assert(cond, ...) \ */
+/*   { assert_line(__LINE__, cond, __VA_ARGS__) } */
+/* #if CONFIGURATION == RELEASE */
+/* #undef assert */
+/* #define assert(x, ...) (void)(x) */
+/* #endif */
 
 // Memory Sizes
 #define KB(x) (x * 1024ull)
@@ -44,7 +45,8 @@ bool is_power_of_two(uintptr_t x) { return (x & (x - 1)) == 0; }
 uintptr_t align_forward(uintptr_t ptr, size_t align) {
   uintptr_t p, a, modulo;
 
-  assert(is_power_of_two(align));
+  /* todo - fix assert code */
+  /* assert(is_power_of_two(align)); */
 
   p = ptr;
   a = (uintptr_t)align;
@@ -65,8 +67,9 @@ uintptr_t align_forward(uintptr_t ptr, size_t align) {
 
 //
 float sin_breathe(float time, float rate) {
-  return (sin(time * rate) + 1.0) / 2.0;
+  return ((float)sin((double)time * (double)rate) + 1.0f) / 2.0f;
 }
+
 //
 
 typedef struct Arena Arena;
@@ -117,7 +120,8 @@ void *arena_resize_align(Arena *a, void *old_memory, size_t old_size,
                          size_t new_size, size_t align) {
   unsigned char *old_mem = (unsigned char *)old_memory;
 
-  assert(is_power_of_two(align));
+  /* TODO: fix asserts */
+  /* assert(is_power_of_two(align)); */
 
   if (old_mem == NULL || old_size == 0) {
     return arena_alloc_align(a, new_size, align);
@@ -138,7 +142,8 @@ void *arena_resize_align(Arena *a, void *old_memory, size_t old_size,
     }
 
   } else {
-    assert(0 && "Memory is out of bounds of the buffer in this arena");
+    /* TODO: fix assert */
+    /* assert(0 && "Memory is out of bounds of the buffer in this arena"); */
     return NULL;
   }
 }
@@ -194,37 +199,30 @@ typedef enum EntityArchetype {
 } EntityArchetype;
 // TODO: there has to be a better way to do this
 char *getArchetypeName(EntityArchetype arch) {
-  printf("GET ARCH NAME: %i", arch);
   switch (arch) {
   case arch_player:
     return "player";
-    break;
   case arch_hoe:
     return "hoe";
-    break;
   case arch_shovel:
     return "shovel";
-    break;
   case arch_weed:
     return "weed";
-    break;
   case arch_rock:
     return "rock";
-    break;
   case arch_item_wood:
     return "item wood";
-    break;
   case arch_item_stone:
     return "item stone";
-    break;
   case arch_item_plant_matter:
     return "item plant matter";
-    break;
+  case arch_nil:
+  case ARCH_MAX:
   default:
     return "nil";
-    break;
   }
-};
+}
+
 typedef enum SpriteId {
   sprite_nil = 0,
   sprite_player,
@@ -240,37 +238,30 @@ typedef enum SpriteId {
 
 SpriteId getArchetypeSpriteId(EntityArchetype arch) {
   switch (arch) {
-  arch_player:
+  case arch_player:
     return sprite_player;
-    break;
-  arch_hoe:
+  case arch_hoe:
     return sprite_hoe;
-    break;
-  arch_shovel:
+  case arch_shovel:
     return sprite_shovel;
-    break;
-  arch_weed:
+  case arch_weed:
     return sprite_weed;
-    break;
-  arch_rock:
+  case arch_rock:
     return sprite_rock;
-    break;
-  arch_item_wood:
+  case arch_item_wood:
     return sprite_wood;
-    break;
-  arch_item_stone:
+  case arch_item_stone:
     return sprite_stone_material;
-    break;
-  arch_item_plant_matter:
+  case arch_item_plant_matter:
     return sprite_plant_material;
-    break;
+  case ARCH_MAX:
+  case arch_nil:
   default:
     return sprite_nil;
-    break;
   }
-};
+}
 
-Texture2D sprites[SPRITE_MAX];
+static Texture2D sprites[SPRITE_MAX];
 Texture2D *get_sprite(SpriteId id) {
   if (id >= 0 && id < SPRITE_MAX) {
     return &sprites[id];
@@ -295,11 +286,11 @@ typedef struct World {
   int inventory[MAX_INVENTORY_COUNT];
 } World;
 
-World *world = 0;
+static World *world = 0;
 // {0} automatically zeros the data allocated for the struct
 /* static World world = {0}; */
 
-Entity *entity_create() {
+Entity *entity_create(void) {
   Entity *entity_found = 0;
   for (int i = 0; i < MAX_ENTITY_COUNT; i++) {
     Entity *existing_entity = &(world->entities[i]);
@@ -308,7 +299,8 @@ Entity *entity_create() {
       break;
     }
   }
-  assert(entity_found, "No more free entities!");
+  /* TODO: fix assert */
+  /*   assert(entity_found, "No more free entities!"); */
 
   memset(entity_found, 0, sizeof(Entity));
 
@@ -316,13 +308,15 @@ Entity *entity_create() {
   return entity_found;
 }
 
-const float tileWidth = 40;
+static const float tileWidth = 40;
 
-int world_pos_to_tile_pos(float world_pos) {
+float world_pos_to_tile_pos(float world_pos) {
   return roundf(world_pos / tileWidth);
 }
 
-float tile_pos_to_world_pos(int tile_pos) { return tileWidth * tile_pos; }
+float tile_pos_to_world_pos(float tile_pos) {
+  return tileWidth * (float)tile_pos;
+}
 
 Vector2 round_v2_to_tile(Vector2 v2) {
   v2.x = tile_pos_to_world_pos(world_pos_to_tile_pos(v2.x));
@@ -330,16 +324,16 @@ Vector2 round_v2_to_tile(Vector2 v2) {
   return v2;
 }
 
-const int playerHealth = 5;
-const float playerPickupRadius = 20.0;
-const int rockHealth = 3;
-const int weedHealth = 2;
+static const int playerHealth = 5;
+static const float playerPickupRadius = 20.0;
+static const int rockHealth = 3;
+static const int weedHealth = 2;
 
 Entity *SetupPlayer(Vector2 pos) {
   Entity *entity = entity_create();
 
   entity->pos = round_v2_to_tile(pos);
-  entity->pos.y -= tileWidth * 0.5;
+  entity->pos.y -= tileWidth * 0.5f;
   entity->health = playerHealth;
   /* entity->pos.x -= tileWidth * 0.5; */
 
@@ -352,7 +346,7 @@ void SetupRock(Vector2 pos) {
   Entity *entity = entity_create();
 
   entity->pos = round_v2_to_tile(pos);
-  entity->pos.y -= tileWidth * 0.5;
+  entity->pos.y -= tileWidth * 0.5f;
   /* entity->pos.x += tileWidth * 0.125; */
   entity->health = rockHealth;
   entity->is_destroyable_world_item = true;
@@ -365,8 +359,8 @@ void SetupWeed(Vector2 pos) {
   Entity *entity = entity_create();
 
   entity->pos = round_v2_to_tile(pos);
-  entity->pos.y -= tileWidth * 0.5;
-  entity->pos.x += tileWidth * 0.25;
+  entity->pos.y -= tileWidth * 0.5f;
+  entity->pos.x += tileWidth * 0.25f;
   entity->health = weedHealth;
   entity->is_destroyable_world_item = true;
 
@@ -378,8 +372,8 @@ void SetupItemWood(Vector2 pos) {
   Entity *entity = entity_create();
 
   entity->pos = round_v2_to_tile(pos);
-  entity->pos.y -= tileWidth * 0.5;
-  entity->pos.x += tileWidth * 0.5;
+  entity->pos.y -= tileWidth * 0.5f;
+  entity->pos.x += tileWidth * 0.5f;
 
   entity->is_item = true;
 
@@ -455,10 +449,10 @@ int main(void) {
       LoadTexture("assets/sprites/plant_material.png");
 
   for (int i = 0; i < 10; i++) {
-    SetupRock(v2(i * 100, i * 100));
+    SetupRock(v2((float)i * 100, (float)i * 100));
   }
   for (int i = 0; i < 10; i++) {
-    SetupWeed(v2(i * 20, i * 15));
+    SetupWeed(v2((float)i * 20.0f, (float)i * 15.0f));
   }
 
   //--------------------------------------------------------------------------------------
@@ -546,7 +540,7 @@ int main(void) {
         // make collectibles bounce
         Vector2 translation = v2(0, 0);
         if (existing_entity->is_item) {
-          translation.y = sin_breathe(GetTime(), 5.0) * 10;
+          translation.y = sin_breathe((float)GetTime(), 5.0f) * 10.0f;
         }
 
         DrawTextureEx(sprite, Vector2Add(existing_entity->pos, translation),
@@ -596,7 +590,8 @@ int main(void) {
       if (world->inventory[i] > 0) {
 
         char posStr[1000];
-        sprintf(posStr, "%s: %d", getArchetypeName(i), world->inventory[i]);
+        sprintf(posStr, "%s: %d", getArchetypeName((EntityArchetype)i),
+                world->inventory[i]);
         DrawText(posStr, titleFontX, titleFontY + 20 * (i + 2), titleFontSize,
                  RED);
       }

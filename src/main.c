@@ -194,7 +194,6 @@ typedef enum EntityArchetype {
 } EntityArchetype;
 // TODO: there has to be a better way to do this
 char *getArchetypeName(EntityArchetype arch) {
-  printf("GET ARCH NAME: %i", arch);
   switch (arch) {
   case arch_player:
     return "player";

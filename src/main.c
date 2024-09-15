@@ -457,7 +457,7 @@ int main(void) {
 
     // TODO: maybe make the clock only update every 5 or ten minutes like in SDV
     // 1 seconds = 1 minute, 24 minutes in game is a 24 hour day
-    const float deltaTScale = 0.1;
+    const float deltaTScale = 1;
     world->timeElapsed += deltaT;
     if (world->timeElapsed >= deltaTScale) {
       world->timeElapsed = 0;

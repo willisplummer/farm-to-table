@@ -13,9 +13,10 @@ Template is [here](https://github.com/willisplummer/ooga-booga-raylib)
 
 ## Build
 
-run `bear -- make` to get latest compiler stuff for language server after changes to the compile make command
-
 run `make` in the top-level directory then you can play by calling the executable with `bin/build_mac`
+
+## LSP
+run `bear -- make` to get latest compiler config in `compile_commands.json` for the language server after changes to the `Makefile`
 
 ## Next Steps
 

@@ -274,11 +274,12 @@ typedef struct Entity {
 typedef struct World {
   Entity entities[MAX_ENTITY_COUNT];
   int inventory[MAX_INVENTORY_COUNT];
+  int timeInMinutes;
+  double timeElapsed;
+  int dayCount;
 } World;
 
 World *world = 0;
-// {0} automatically zeros the data allocated for the struct
-/* static World world = {0}; */
 
 Entity *entity_create() {
   Entity *entity_found = 0;
@@ -402,10 +403,14 @@ int main(void) {
   Color background = GetColor(0x4b692fff);
 
   void *backing_buffer = malloc(ARENA_SIZE);
-  Arena a = {0};
+  /* Arena a = {0}; */ // Not necessary to 0 it
+  Arena a;
   arena_init(&a, backing_buffer, ARENA_SIZE);
 
   world = arena_alloc(&a, sizeof(&world));
+  world->dayCount = 0;
+  world->timeElapsed = 0;
+  world->timeInMinutes = 720; // 12noon
 
   InitWindow(screenWidth, screenHeight, gameTitle);
 
@@ -439,7 +444,7 @@ int main(void) {
     SetupRock(v2(i * 100, i * 100));
   }
   for (int i = 0; i < 10; i++) {
-    SetupWeed(v2(i * 20, i * 15));
+    SetupWeed(v2(i * 150, i * 322));
   }
 
   //--------------------------------------------------------------------------------------
@@ -449,6 +454,19 @@ int main(void) {
   {
     const float deltaT = GetFrameTime();
     const float playerSpeed = 300;
+
+    // TODO: maybe make the clock only update every 5 or ten minutes like in SDV
+    // 1 seconds = 1 minute, 24 minutes in game is a 24 hour day
+    const float deltaTScale = 0.1;
+    world->timeElapsed += deltaT;
+    if (world->timeElapsed >= deltaTScale) {
+      world->timeElapsed = 0;
+      world->timeInMinutes += 1;
+    }
+    if (world->timeInMinutes >= (60 * 24)) {
+      world->dayCount += 1;
+      world->timeInMinutes = 0;
+    }
 
     // Update
     //----------------------------------------------------------------------------------
@@ -547,9 +565,8 @@ int main(void) {
         if (existing_entity->is_item &&
             fabs(Vector2Distance(player->pos, existing_entity->pos)) <
                 playerPickupRadius) {
-
-          world->inventory[existing_entity->archetype] += 1;
           existing_entity->is_valid = false;
+          world->inventory[existing_entity->archetype] += 1;
         }
 
         // TODO: I think this should be a temp arena allocation - it's only
@@ -572,13 +589,25 @@ int main(void) {
     int titleFontY = 10;
     int titleFontSize = 40;
     DrawText(gameTitle, titleFontX, titleFontY, titleFontSize, RED);
-    DrawText("Inventory:", titleFontX, titleFontY + 20, titleFontSize, RED);
+
+    // TODO: something's up with my arena - when I do this temp allocation, it
+    // overwrites the player sprite, like the offset isn't being applied - the
+    // pointer is just the start of the arena
+    /* Temp_Arena_Memory tmp = temp_arena_memory_begin(&a); */
+    /* char *timeString = arena_alloc(&a, 12); */
+    char timeStr[16];
+    sprintf(timeStr, "Day %d, %02d:%02d", world->dayCount + 1,
+            world->timeInMinutes / 60, world->timeInMinutes % 60);
+    DrawText(timeStr, titleFontX, titleFontY + 30, titleFontSize, BLACK);
+    /* temp_arena_memory_end(tmp); */
+
+    DrawText("Inventory:", titleFontX, titleFontY + 50, titleFontSize, RED);
     for (int i = 0; i < MAX_INVENTORY_COUNT; i++) {
       if (world->inventory[i] > 0) {
 
         char posStr[1000];
         sprintf(posStr, "%s: %d", getArchetypeName(i), world->inventory[i]);
-        DrawText(posStr, titleFontX, titleFontY + 20 * (i + 2), titleFontSize,
+        DrawText(posStr, titleFontX, titleFontY + 30 * (i + 2), titleFontSize,
                  RED);
       }
     }

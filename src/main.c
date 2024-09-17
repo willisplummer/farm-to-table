@@ -403,11 +403,14 @@ int main(void) {
   Color background = GetColor(0x4b692fff);
 
   void *backing_buffer = malloc(ARENA_SIZE);
-  /* Arena a = {0}; */ // Not necessary to 0 it
-  Arena a;
+  Arena a = {0};
   arena_init(&a, backing_buffer, ARENA_SIZE);
+  world = arena_alloc(&a, sizeof(World));
+  /* printf("FIRST ARENA ALLOC: current offset - %lu, previous offset - %lu, "
+   */
+  /*        "Arena Size - %llu", */
+  /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
 
-  world = arena_alloc(&a, sizeof(&world));
   world->dayCount = 0;
   world->timeElapsed = 0;
   world->timeInMinutes = 720; // 12noon
@@ -569,10 +572,6 @@ int main(void) {
           world->inventory[existing_entity->archetype] += 1;
         }
 
-        // TODO: I think this should be a temp arena allocation - it's only
-        // needed for this frame -- or is it fine that it just comes from the
-        // stack - maybe with too many objects I'd get a stack overflow here?
-
         // DEBUG - print all entities' positions below them
         /* char posStr[100]; */
         /* sprintf(posStr, "(%.2f, %.2f)", existing_entity->pos.x, */
@@ -590,17 +589,26 @@ int main(void) {
     int titleFontSize = 40;
     DrawText(gameTitle, titleFontX, titleFontY, titleFontSize, RED);
 
-    // TODO: something's up with my arena - when I do this temp allocation, it
-    // overwrites the player sprite, like the offset isn't being applied - the
-    // pointer is just the start of the arena
-    /* Temp_Arena_Memory tmp = temp_arena_memory_begin(&a); */
-    /* char *timeString = arena_alloc(&a, 12); */
-    char timeStr[16];
+    Temp_Arena_Memory tmp = temp_arena_memory_begin(&a);
+    // NOTE: not sure that 16 is big enough once the integer gets up to a
+    // certain size(?)
+    char *timeStr = arena_alloc(&a, 16);
+    /* printf("TMP ARENA ALLOCD: current offset - %lu, previous offset - %lu, "
+     */
+    /*        "Arena Size - %llu", */
+    /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
+    /* char timeStr[16]; */
     sprintf(timeStr, "Day %d, %02d:%02d", world->dayCount + 1,
             world->timeInMinutes / 60, world->timeInMinutes % 60);
     DrawText(timeStr, titleFontX, titleFontY + 30, titleFontSize, BLACK);
-    /* temp_arena_memory_end(tmp); */
+    temp_arena_memory_end(tmp);
+    /* printf("TMP ARENA RELEASED: current offset - %lu, previous offset - %lu,
+     * " */
+    /*        "Arena Size - %llu", */
+    /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
 
+    // TODO: is there any reason to put these strings in the temp_arena rather
+    // than the stack
     DrawText("Inventory:", titleFontX, titleFontY + 50, titleFontSize, RED);
     for (int i = 0; i < MAX_INVENTORY_COUNT; i++) {
       if (world->inventory[i] > 0) {
@@ -627,5 +635,6 @@ int main(void) {
   CloseWindow(); // Close window and OpenGL context
   //--------------------------------------------------------------------------------------
 
+  free(backing_buffer);
   return 0;
 }

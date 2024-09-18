@@ -277,6 +277,8 @@ typedef struct World {
   int timeInMinutes;
   double timeElapsed;
   int dayCount;
+  float energy;
+  float hydration;
 } World;
 
 World *world = 0;
@@ -388,6 +390,14 @@ void UpdateCameraCenterSmoothFollow(Camera2D *camera, Entity *player,
   }
 }
 
+void InitWorld(World *world) {
+  world->dayCount = 0;
+  world->timeElapsed = 0;
+  world->timeInMinutes = 720; // 12noon
+  world->energy = 100;
+  world->hydration = 100;
+};
+
 #define ARENA_SIZE MB(20)
 /* static unsigned char backing_buffer[ARENA_SIZE]; */
 
@@ -410,10 +420,7 @@ int main(void) {
    */
   /*        "Arena Size - %llu", */
   /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
-
-  world->dayCount = 0;
-  world->timeElapsed = 0;
-  world->timeInMinutes = 720; // 12noon
+  InitWorld(world);
 
   InitWindow(screenWidth, screenHeight, gameTitle);
 
@@ -457,6 +464,7 @@ int main(void) {
   {
     const float deltaT = GetFrameTime();
     const float playerSpeed = 300;
+    const float defaultEnergyLoss = 1;
 
     // TODO: maybe make the clock only update every 5 or ten minutes like in SDV
     // 1 seconds = 1 minute, 24 minutes in game is a 24 hour day
@@ -465,6 +473,7 @@ int main(void) {
     if (world->timeElapsed >= deltaTScale) {
       world->timeElapsed = 0;
       world->timeInMinutes += 1;
+      world->energy -= defaultEnergyLoss;
     }
     if (world->timeInMinutes >= (60 * 24)) {
       world->dayCount += 1;
@@ -620,11 +629,15 @@ int main(void) {
       }
     }
 
+    DrawRectangle(titleFontX, titleFontY + 200, 50, world->energy * 5,
+                  world->energy > 30 ? GREEN : RED);
+
     /* Debug Render Mouse Position */
     /* char posStr[1000]; */
     /* sprintf(posStr, "(%.2f, %.2f)", mouseWorldPosition.x,
      * mouseWorldPosition.y); */
-    /* DrawText(posStr, mouseWorldPosition.x, mouseWorldPosition.y, 20, RED); */
+    /* DrawText(posStr, mouseWorldPosition.x, mouseWorldPosition.y, 20,
+       RED); */
 
     EndDrawing();
     //----------------------------------------------------------------------------------

@@ -18,27 +18,30 @@ run `make` in the top-level directory then you can play by calling the executabl
 ## LSP
 run `bear -- make` to get latest compiler config in `compile_commands.json` for the language server after changes to the `Makefile`
 
-## Next Steps
+## Workflow Enhancements
 
+- [ ] hot reloading - https://seletz.github.io/posts/hotreload-gamecode-in-c/ https://github.com/seletz/raylib-hot-code-reload-c-example?tab=readme-ov-file
+- [ ] break up the huge main file (at least pull out the arenas code)
 -[x] set background color
 -[x] import my player asset
 -[x] implement player movement
 -[x] gameloop should account for delta_t
 -[x] make player sprite the right size
 -[x] make sure I have a working debugger with nvim (and generally I have LSP for C etc) -- leader>db to set break point and <leader>dr to run the debugger
--[ ] hot reloading - https://seletz.github.io/posts/hotreload-gamecode-in-c/ https://github.com/seletz/raylib-hot-code-reload-c-example?tab=readme-ov-file
 
 ## Mechanics To Build
 ### Core Loop
-- Time/Day
+- [x] Time/Day
   - every minute of gameplay is 1 hour of game world time
   - time displays in corner of screen
-- Health/Energy Bar
+- [x] Health/Energy Bar
   - starts at 100%
   - depletes some 5% every hour of in-world time (this would give you 20 hours of not helping yourself to go from 100 to 0 but should pull this out into an easily adjusted variable)
-- Inventory/Starting Items
-  - player starts with axe, net, fishing hook, sleeping bag
-  - player can toggle between items in inventory (shows them in hand? at minimum highlights the selected item in inventory)
+- [ ] Game Over Screen
+  - when health reaches 0, we show game over screen without amount of days and hours that the player survived
+- [ ] Inventory/Starting Items
+  - mvp: player starts with foraging bag, can toggle through inv (selected is surrounded by a box) and use selected item
+  - later: player starts with axe, net, fishing hook, sleeping bag, can toggle them and show the item in hand
 - Foraging Items From World
   - interact with berry bush, berries pop out, bush is empty
   - player can walk over berries and add them to inventory -- I think having a foraging bag or something so that edibles are not just in base inv seems good

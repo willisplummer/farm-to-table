@@ -37,15 +37,13 @@ run `bear -- make` to get latest compiler config in `compile_commands.json` for 
 - [x] Health/Energy Bar
   - starts at 100%
   - depletes some 5% every hour of in-world time (this would give you 20 hours of not helping yourself to go from 100 to 0 but should pull this out into an easily adjusted variable)
-- [ ] Game Over Screen
+- [x] Game Over Screen
   - when health reaches 0, we show game over screen without amount of days and hours that the player survived
-- [ ] Inventory/Starting Items
-  - mvp: player starts with foraging bag, can toggle through inv (selected is surrounded by a box) and use selected item
-  - later: player starts with axe, net, fishing hook, sleeping bag, can toggle them and show the item in hand
-- Foraging Items From World
-  - interact with berry bush, berries pop out, bush is empty
-  - player can walk over berries and add them to inventory -- I think having a foraging bag or something so that edibles are not just in base inv seems good
-  - player can eat the berries from inventory (replenishes health by some amount specified on item entity)
+- [ ] Foraging Items From World
+    - interact with berry bush, berries pop out, bush is empty
+    - player can walk over berries and add them to inventory -- I think having a foraging bag or something so that edibles are not just in base inv seems good
+    - player can eat the berries from inventory (replenishes health by some amount specified on item entity)
+    - do berries come back every day? do they just spawn nearby? etc.
 - Sleep
   - Player starts with sleeping bag, can use it to make camp (takes some amount of time)
   - At camp, player can sleep (resting at basic camp restores 30% of current energy so 1.3x energy level - this should be easily adjustable too)

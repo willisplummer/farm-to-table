@@ -269,6 +269,15 @@ typedef struct Entity {
   bool is_destroyable_world_item;
 } Entity;
 
+typedef enum GameState {
+  state_nil = 0,
+  state_start,
+  state_pause,
+  state_play,
+  state_gameover,
+  STATE_MAX
+} GameState;
+
 #define MAX_ENTITY_COUNT 1024
 #define MAX_INVENTORY_COUNT ARCH_MAX
 typedef struct World {
@@ -279,6 +288,12 @@ typedef struct World {
   int dayCount;
   float energy;
   float hydration;
+  GameState state;
+  float screenHeight;
+  float screenWidth;
+  Entity *player;
+  Color backgroundColor;
+  Camera2D camera;
 } World;
 
 World *world = 0;
@@ -330,6 +345,17 @@ Entity *SetupPlayer(Vector2 pos) {
   entity->archetype = arch_player;
   entity->sprite_id = sprite_player;
   return entity;
+}
+Camera2D SetupCamera(Vector2 initialPlayerPosition) {
+  Camera2D camera = {0};
+
+  camera.target = world->player->pos;
+  camera.offset =
+      (Vector2){world->screenWidth / 2.0f, world->screenHeight / 2.0f};
+  camera.rotation = 0.0f;
+  camera.zoom = 1.25f;
+
+  return camera;
 }
 
 void SetupRock(Vector2 pos) {
@@ -391,15 +417,43 @@ void UpdateCameraCenterSmoothFollow(Camera2D *camera, Entity *player,
 }
 
 void InitWorld(World *world) {
+  world->state = state_start;
   world->dayCount = 0;
   world->timeElapsed = 0;
   world->timeInMinutes = 720; // 12noon
   world->energy = 100;
   world->hydration = 100;
+  world->screenWidth = 1280;
+  world->screenHeight = 720;
+  world->backgroundColor = GetColor(0x4b692fff);
+
+  Vector2 initialPlayerPosition = {world->screenWidth / 2.0f,
+                                   world->screenHeight / 2.0f};
+  world->player = SetupPlayer(initialPlayerPosition);
+  world->camera = SetupCamera(initialPlayerPosition);
 };
 
 #define ARENA_SIZE MB(20)
 /* static unsigned char backing_buffer[ARENA_SIZE]; */
+
+void UpdateStartState(World *world);
+void UpdatePlayState(World *world, Arena *arena);
+/* void UpdatePauseState(World *world); */
+void UpdateGameOverState(World *world, Arena *arena);
+void UpdateState(World *world, Arena *arena) {
+  switch (world->state) {
+  case state_start:
+    return UpdateStartState(world);
+  case state_play:
+    return UpdatePlayState(world, arena);
+  case state_gameover:
+    return UpdateGameOverState(world, arena);
+  default:
+    return;
+  }
+};
+
+static char gameTitle[16] = "Farm To Table";
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -407,31 +461,18 @@ void InitWorld(World *world) {
 int main(void) {
   // Initialization
   //--------------------------------------------------------------------------------------
-  const char gameTitle[] = "Farm To Table";
-  const int screenWidth = 1280;
-  const int screenHeight = 720;
-  Color background = GetColor(0x4b692fff);
 
   void *backing_buffer = malloc(ARENA_SIZE);
-  Arena a = {0};
-  arena_init(&a, backing_buffer, ARENA_SIZE);
-  world = arena_alloc(&a, sizeof(World));
+  Arena arena = {0};
+  arena_init(&arena, backing_buffer, ARENA_SIZE);
+  world = arena_alloc(&arena, sizeof(World));
   /* printf("FIRST ARENA ALLOC: current offset - %lu, previous offset - %lu, "
    */
   /*        "Arena Size - %llu", */
   /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
   InitWorld(world);
 
-  InitWindow(screenWidth, screenHeight, gameTitle);
-
-  Entity *player =
-      SetupPlayer((Vector2){screenWidth / 2.0f, screenHeight / 2.0f});
-
-  Camera2D camera = {0};
-  camera.target = player->pos;
-  camera.offset = (Vector2){screenWidth / 2.0f, screenHeight / 2.0f};
-  camera.rotation = 0.0f;
-  camera.zoom = 1.25f;
+  InitWindow(world->screenWidth, world->screenHeight, gameTitle);
 
   SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
@@ -458,196 +499,245 @@ int main(void) {
   }
 
   //--------------------------------------------------------------------------------------
-
   // Main game loop
   while (!WindowShouldClose()) // Detect window close button or ESC key
   {
-    const float deltaT = GetFrameTime();
-    const float playerSpeed = 300;
-    const float defaultEnergyLoss = 1;
-
-    // TODO: maybe make the clock only update every 5 or ten minutes like in SDV
-    // 1 seconds = 1 minute, 24 minutes in game is a 24 hour day
-    const float deltaTScale = 1;
-    world->timeElapsed += deltaT;
-    if (world->timeElapsed >= deltaTScale) {
-      world->timeElapsed = 0;
-      world->timeInMinutes += 1;
-      world->energy -= defaultEnergyLoss;
-    }
-    if (world->timeInMinutes >= (60 * 24)) {
-      world->dayCount += 1;
-      world->timeInMinutes = 0;
-    }
-
-    // Update
-    //----------------------------------------------------------------------------------
-    Vector2 movement = {.x = 0, .y = 0};
-    if (IsKeyDown(KEY_RIGHT))
-      movement.x += 1;
-    if (IsKeyDown(KEY_LEFT))
-      movement.x -= 1;
-    if (IsKeyDown(KEY_UP))
-      movement.y -= 1;
-    if (IsKeyDown(KEY_DOWN))
-      movement.y += 1;
-
-    movement = Vector2Normalize(movement);
-    movement = Vector2Scale(movement, deltaT * playerSpeed);
-
-    player->pos = Vector2Add(player->pos, movement);
-    UpdateCameraCenterSmoothFollow(&camera, player, deltaT, screenWidth,
-                                   screenHeight);
-
-    Vector2 mouseScreenPosition = GetMousePosition();
-    Vector2 mouseWorldPosition =
-        GetScreenToWorld2D(mouseScreenPosition, camera);
-    // NOTE: alignment didnt feel right before - this slight adjustment fixes
-    mouseWorldPosition = Vector2Subtract(mouseWorldPosition, v2(10, 10));
-    Vector2 mouseTilePosition = round_v2_to_tile(mouseWorldPosition);
-
-    const float scale = 4.0;
-
-    //----------------------------------------------------------------------------------
-
-    // Draw
-    //----------------------------------------------------------------------------------
-    BeginDrawing();
-
-    ClearBackground(background);
-
-    BeginMode2D(camera);
-
-    // TODO: maybe this isn't the right way to approach this
-    // Draw the 3d grid, rotated 90 degrees and centered around 0,0
-    // just so we have something in the XY plane
-    rlPushMatrix();
-    rlTranslatef(0, 25 * tileWidth, 0);
-    rlRotatef(90, 1, 0, 0);
-    // I think the 1000 here is how many tiles
-    DrawGrid(1000, tileWidth);
-    rlPopMatrix();
-
-    Rectangle mouseRectangle = (Rectangle){
-        mouseTilePosition.x, mouseTilePosition.y, tileWidth, tileWidth};
-    DrawRectangleRec(mouseRectangle, RED);
-
-    for (int i = 0; i < MAX_ENTITY_COUNT; i++) {
-      Entity *existing_entity = &world->entities[i];
-      if (existing_entity && existing_entity->is_valid) {
-        Texture2D sprite = sprites[existing_entity->sprite_id];
-
-        Rectangle entityBounds = {existing_entity->pos.x,
-                                  existing_entity->pos.y, sprite.width * scale,
-                                  sprite.height * scale};
-
-        // Check if point is inside rectangle
-        // TODO: instead - check if the mouse tile is the same as the entity's
-        // tile
-        bool mouseInBounds = CheckCollisionRecs(mouseRectangle, entityBounds);
-
-        /* Color col = RAYWHITE; */
-        /* if (mouseInBounds) { */
-        /*   col = RED; */
-        /* } */
-
-        /* Debug Rectangles  */
-        /* DrawRectangleRec(bounds, col); */
-
-        // make collectibles bounce
-        Vector2 translation = v2(0, 0);
-        if (existing_entity->is_item) {
-          translation.y = sin_breathe(GetTime(), 5.0) * 10;
-        }
-
-        DrawTextureEx(sprite, Vector2Add(existing_entity->pos, translation),
-                      0.0f, scale, RAYWHITE);
-
-        if (existing_entity->is_destroyable_world_item && mouseInBounds &&
-            IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-          existing_entity->health -= 1;
-          if (existing_entity->health <= 0) {
-            existing_entity->is_valid = false;
-            if (existing_entity->archetype == arch_weed) {
-              SetupItemWood(existing_entity->pos);
-            }
-          }
-        }
-
-        if (existing_entity->is_item &&
-            fabs(Vector2Distance(player->pos, existing_entity->pos)) <
-                playerPickupRadius) {
-          existing_entity->is_valid = false;
-          world->inventory[existing_entity->archetype] += 1;
-        }
-
-        // DEBUG - print all entities' positions below them
-        /* char posStr[100]; */
-        /* sprintf(posStr, "(%.2f, %.2f)", existing_entity->pos.x, */
-        /*         existing_entity->pos.y); */
-        /* DrawText(posStr, existing_entity->pos.x, existing_entity->pos.y + 30,
-         */
-        /*          20, RED); */
-      }
-    }
-
-    EndMode2D();
-
-    int titleFontX = screenWidth - 300;
-    int titleFontY = 10;
-    int titleFontSize = 40;
-    DrawText(gameTitle, titleFontX, titleFontY, titleFontSize, RED);
-
-    Temp_Arena_Memory tmp = temp_arena_memory_begin(&a);
-    // NOTE: not sure that 16 is big enough once the integer gets up to a
-    // certain size(?)
-    char *timeStr = arena_alloc(&a, 16);
-    /* printf("TMP ARENA ALLOCD: current offset - %lu, previous offset - %lu, "
-     */
-    /*        "Arena Size - %llu", */
-    /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
-    /* char timeStr[16]; */
-    sprintf(timeStr, "Day %d, %02d:%02d", world->dayCount + 1,
-            world->timeInMinutes / 60, world->timeInMinutes % 60);
-    DrawText(timeStr, titleFontX, titleFontY + 30, titleFontSize, BLACK);
-    temp_arena_memory_end(tmp);
-    /* printf("TMP ARENA RELEASED: current offset - %lu, previous offset - %lu,
-     * " */
-    /*        "Arena Size - %llu", */
-    /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
-
-    // TODO: is there any reason to put these strings in the temp_arena rather
-    // than the stack
-    DrawText("Inventory:", titleFontX, titleFontY + 50, titleFontSize, RED);
-    for (int i = 0; i < MAX_INVENTORY_COUNT; i++) {
-      if (world->inventory[i] > 0) {
-
-        char posStr[1000];
-        sprintf(posStr, "%s: %d", getArchetypeName(i), world->inventory[i]);
-        DrawText(posStr, titleFontX, titleFontY + 30 * (i + 2), titleFontSize,
-                 RED);
-      }
-    }
-
-    DrawRectangle(titleFontX, titleFontY + 200, 50, world->energy * 5,
-                  world->energy > 30 ? GREEN : RED);
-
-    /* Debug Render Mouse Position */
-    /* char posStr[1000]; */
-    /* sprintf(posStr, "(%.2f, %.2f)", mouseWorldPosition.x,
-     * mouseWorldPosition.y); */
-    /* DrawText(posStr, mouseWorldPosition.x, mouseWorldPosition.y, 20,
-       RED); */
-
-    EndDrawing();
-    //----------------------------------------------------------------------------------
+    UpdateState(world, &arena);
   }
+  //--------------------------------------------------------------------------------------
 
   // De-Initialization
   //--------------------------------------------------------------------------------------
   CloseWindow(); // Close window and OpenGL context
+  free(backing_buffer);
   //--------------------------------------------------------------------------------------
 
-  free(backing_buffer);
   return 0;
+}
+
+void UpdateStartState(World *world) {
+  if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    world->state = state_play;
+  }
+
+  BeginDrawing();
+
+  ClearBackground(world->backgroundColor);
+  Vector2 center = {world->screenWidth / 2.0f, world->screenHeight / 2.0f};
+  DrawText(gameTitle, center.x, center.y, 24, BLACK);
+
+  char click[16] = "Click To Start";
+  DrawText(click, center.x, center.y + 20, 24, BLACK);
+
+  EndDrawing();
+}
+
+void UpdateGameOverState(World *world, Arena *arena) {
+  BeginDrawing();
+
+  ClearBackground(world->backgroundColor);
+  Vector2 center = {world->screenWidth / 2.0f, world->screenHeight / 2.0f};
+  DrawText(gameTitle, center.x, center.y, 24, BLACK);
+
+  Temp_Arena_Memory tmp = temp_arena_memory_begin(arena);
+  char *resultsStr = arena_alloc(arena, 128);
+  sprintf(resultsStr, "You Survived %d days, %02d hours, and %02d minutes",
+          world->dayCount + 1, world->timeInMinutes / 60,
+          world->timeInMinutes % 60);
+  DrawText(resultsStr, center.x, center.y + 20, 24, BLACK);
+  temp_arena_memory_end(tmp);
+
+  char click[32] = "TODO: Click To Play Again";
+  DrawText(click, center.x, center.y + 40, 24, BLACK);
+
+  EndDrawing();
+};
+
+void UpdatePlayState(World *world, Arena *arena) {
+  const float deltaT = GetFrameTime();
+  const float playerSpeed = 300;
+  const float defaultFatigueRate = 1;
+
+  if (world->energy <= 0) {
+    world->state = state_gameover;
+    return;
+  }
+
+  // TODO: maybe make the clock only update every 5 or ten minutes like in
+  // SDV 1 seconds = 1 minute, 24 minutes in game is a 24 hour day
+  const float deltaTScale = 1;
+  world->timeElapsed += deltaT;
+  if (world->timeElapsed >= deltaTScale) {
+    world->timeElapsed = 0;
+    world->timeInMinutes += 1;
+    world->energy -= defaultFatigueRate;
+  }
+  if (world->timeInMinutes >= (60 * 24)) {
+    world->dayCount += 1;
+    world->timeInMinutes = 0;
+  }
+
+  // Update
+  //----------------------------------------------------------------------------------
+  Vector2 movement = {.x = 0, .y = 0};
+  if (IsKeyDown(KEY_RIGHT))
+    movement.x += 1;
+  if (IsKeyDown(KEY_LEFT))
+    movement.x -= 1;
+  if (IsKeyDown(KEY_UP))
+    movement.y -= 1;
+  if (IsKeyDown(KEY_DOWN))
+    movement.y += 1;
+
+  movement = Vector2Normalize(movement);
+  movement = Vector2Scale(movement, deltaT * playerSpeed);
+
+  world->player->pos = Vector2Add(world->player->pos, movement);
+  UpdateCameraCenterSmoothFollow(&world->camera, world->player, deltaT,
+                                 world->screenWidth, world->screenHeight);
+
+  Vector2 mouseScreenPosition = GetMousePosition();
+  Vector2 mouseWorldPosition =
+      GetScreenToWorld2D(mouseScreenPosition, world->camera);
+  // NOTE: alignment didnt feel right before - this slight adjustment fixes
+  mouseWorldPosition = Vector2Subtract(mouseWorldPosition, v2(10, 10));
+  Vector2 mouseTilePosition = round_v2_to_tile(mouseWorldPosition);
+
+  const float scale = 4.0;
+
+  //----------------------------------------------------------------------------------
+
+  // Draw
+  //----------------------------------------------------------------------------------
+  BeginDrawing();
+
+  ClearBackground(world->backgroundColor);
+
+  BeginMode2D(world->camera);
+
+  // TODO: maybe this isn't the right way to approach this
+  // Draw the 3d grid, rotated 90 degrees and centered around 0,0
+  // just so we have something in the XY plane
+  rlPushMatrix();
+  rlTranslatef(0, 25 * tileWidth, 0);
+  rlRotatef(90, 1, 0, 0);
+  // I think the 1000 here is how many tiles
+  DrawGrid(1000, tileWidth);
+  rlPopMatrix();
+
+  Rectangle mouseRectangle = (Rectangle){
+      mouseTilePosition.x, mouseTilePosition.y, tileWidth, tileWidth};
+  DrawRectangleRec(mouseRectangle, RED);
+
+  for (int i = 0; i < MAX_ENTITY_COUNT; i++) {
+    Entity *existing_entity = &world->entities[i];
+    if (existing_entity && existing_entity->is_valid) {
+      Texture2D sprite = sprites[existing_entity->sprite_id];
+
+      Rectangle entityBounds = {existing_entity->pos.x, existing_entity->pos.y,
+                                sprite.width * scale, sprite.height * scale};
+
+      // Check if point is inside rectangle
+      // TODO: instead - check if the mouse tile is the same as the entity's
+      // tile
+      bool mouseInBounds = CheckCollisionRecs(mouseRectangle, entityBounds);
+
+      /* Color col = RAYWHITE; */
+      /* if (mouseInBounds) { */
+      /*   col = RED; */
+      /* } */
+
+      /* Debug Rectangles  */
+      /* DrawRectangleRec(bounds, col); */
+
+      // make collectibles bounce
+      Vector2 translation = v2(0, 0);
+      if (existing_entity->is_item) {
+        translation.y = sin_breathe(GetTime(), 5.0) * 10;
+      }
+
+      DrawTextureEx(sprite, Vector2Add(existing_entity->pos, translation), 0.0f,
+                    scale, RAYWHITE);
+
+      if (existing_entity->is_destroyable_world_item && mouseInBounds &&
+          IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        existing_entity->health -= 1;
+        if (existing_entity->health <= 0) {
+          existing_entity->is_valid = false;
+          if (existing_entity->archetype == arch_weed) {
+            SetupItemWood(existing_entity->pos);
+          }
+        }
+      }
+
+      if (existing_entity->is_item &&
+          fabs(Vector2Distance(world->player->pos, existing_entity->pos)) <
+              playerPickupRadius) {
+        existing_entity->is_valid = false;
+        world->inventory[existing_entity->archetype] += 1;
+      }
+
+      // DEBUG - print all entities' positions below them
+      /* char posStr[100]; */
+      /* sprintf(posStr, "(%.2f, %.2f)", existing_entity->pos.x, */
+      /*         existing_entity->pos.y); */
+      /* DrawText(posStr, existing_entity->pos.x, existing_entity->pos.y +
+       * 30,
+       */
+      /*          20, RED); */
+    }
+  }
+
+  EndMode2D();
+
+  int titleFontX = world->screenWidth - 300;
+  int titleFontY = 10;
+  int titleFontSize = 40;
+  DrawText(gameTitle, titleFontX, titleFontY, titleFontSize, RED);
+
+  Temp_Arena_Memory tmp = temp_arena_memory_begin(arena);
+  // NOTE: not sure that 16 is big enough once the integer gets up to a
+  // certain size(?)
+  char *timeStr = arena_alloc(arena, 16);
+  /* printf("TMP ARENA ALLOCD: current offset - %lu, previous offset - %lu,
+   * "
+   */
+  /*        "Arena Size - %llu", */
+  /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
+  /* char timeStr[16]; */
+  sprintf(timeStr, "Day %d, %02d:%02d", world->dayCount + 1,
+          world->timeInMinutes / 60, world->timeInMinutes % 60);
+  DrawText(timeStr, titleFontX, titleFontY + 30, titleFontSize, BLACK);
+  temp_arena_memory_end(tmp);
+  /* printf("TMP ARENA RELEASED: current offset - %lu, previous offset -
+   * %lu,
+   * " */
+  /*        "Arena Size - %llu", */
+  /*        a.curr_offset, a.prev_offset, ARENA_SIZE); */
+
+  // TODO: is there any reason to put these strings in the temp_arena rather
+  // than the stack
+  DrawText("Inventory:", titleFontX, titleFontY + 50, titleFontSize, RED);
+  for (int i = 0; i < MAX_INVENTORY_COUNT; i++) {
+    if (world->inventory[i] > 0) {
+
+      char posStr[1000];
+      sprintf(posStr, "%s: %d", getArchetypeName(i), world->inventory[i]);
+      DrawText(posStr, titleFontX, titleFontY + 30 * (i + 2), titleFontSize,
+               RED);
+    }
+  }
+
+  DrawRectangle(titleFontX, titleFontY + 200, 50, world->energy * 5,
+                world->energy > 30 ? GREEN : RED);
+
+  /* Debug Render Mouse Position */
+  /* char posStr[1000]; */
+  /* sprintf(posStr, "(%.2f, %.2f)", mouseWorldPosition.x,
+   * mouseWorldPosition.y); */
+  /* DrawText(posStr, mouseWorldPosition.x, mouseWorldPosition.y, 20,
+     RED); */
+
+  EndDrawing();
+  //----------------------------------------------------------------------------------
 }
